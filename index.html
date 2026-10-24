@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSH: kalit yaratishdan serverga ulanishgacha</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f4f3ee;
+    color: #222;
+    margin: 0;
+    padding: 24px 16px 60px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 680px;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin: 0 0 24px;
+  }
+  .scene {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 16px;
+  }
+  .col {
+    flex: 1;
+    text-align: center;
+  }
+  .col-label {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+  }
+  .box {
+    background: #fff;
+    border: 1px solid #e0ddd3;
+    border-radius: 14px;
+    padding: 18px 10px;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.25s ease;
+  }
+  .box .icon {
+    font-size: 36px;
+    line-height: 1;
+  }
+  .box .label {
+    font-size: 13px;
+    color: #555;
+    max-width: 150px;
+  }
+  .box .sublabel {
+    font-size: 11px;
+    color: #999;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .packet-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: 14px;
+  }
+  .packet {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: #e6f1fb;
+    color: #0c447c;
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .packet.show { display: inline-flex; }
+  .packet.reverse { flex-direction: row-reverse; }
+  .terminal {
+    display: none;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 13px;
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+  .terminal.show { display: block; }
+  .terminal .prompt { color: #6a9955; }
+  .terminal .cmd { color: #dcdcaa; }
+  .terminal .out { color: #9cdcfe; }
+  .story {
+    background: #fff;
+    border: 1px solid #e0ddd3;
+    border-radius: 14px;
+    padding: 18px 20px;
+    min-height: 74px;
+    font-size: 15px;
+    line-height: 1.65;
+    margin-bottom: 20px;
+  }
+  .phase-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  .phase-setup { background: #eaf3de; color: #3b6d11; }
+  .phase-connect { background: #e6f1fb; color: #0c447c; }
+  .controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .counter {
+    font-size: 13px;
+    color: #999;
+  }
+  .btns {
+    display: flex;
+    gap: 8px;
+  }
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid #d6d2c4;
+    background: #fff;
+    color: #222;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button:hover { background: #f0efe8; }
+  button:active { transform: scale(0.98); }
+  #next-btn {
+    background: #222;
+    color: #fff;
+    border-color: #222;
+  }
+  #next-btn:hover { background: #3a3a3a; }
+  .progress {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+  .progress .dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #e0ddd3;
+    transition: background 0.2s ease;
+  }
+  .progress .dot.done { background: #222; }
+  .footer-note {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin-top: 24px;
+  }
+  .faq {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid #e0ddd3;
+  }
+  .faq h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  .faq-q {
+    background: #fff;
+    border: 1px solid #e0ddd3;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .faq-q .q-label {
+    font-weight: 600;
+    color: #0c447c;
+    margin-bottom: 6px;
+  }
+  .faq-rule {
+    background: #eaf3de;
+    color: #27500a;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 12px 0;
+  }
+  .faq-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 12px 0;
+  }
+  .faq-table th, .faq-table td {
+    border: 1px solid #e0ddd3;
+    padding: 8px 10px;
+    text-align: left;
+  }
+  .faq-table th {
+    background: #f4f3ee;
+    font-weight: 600;
+  }
+  .faq-note {
+    background: #faeeda;
+    color: #633806;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SSH qanday ishlaydi?</h1>
+  <p class="subtitle">Kalit yaratishdan serverga ulanishgacha — qadam-baqadam</p>
+
+  <div class="progress" id="progress"></div>
+
+  <div class="scene">
+    <div class="col">
+      <div class="col-label">Sizning kompyuteringiz</div>
+      <div class="box" id="user-box"></div>
+    </div>
+    <div class="col">
+      <div class="col-label">Server</div>
+      <div class="box" id="server-box"></div>
+    </div>
+  </div>
+
+  <div class="packet-row">
+    <div class="packet" id="packet">
+      <span>📦</span>
+      <span id="packet-text"></span>
+    </div>
+  </div>
+
+  <div class="terminal" id="terminal"></div>
+
+  <div class="story">
+    <span class="phase-tag" id="phase-tag"></span>
+    <p id="step-text" style="margin:0;"></p>
+  </div>
+
+  <div class="controls">
+    <span class="counter" id="step-counter"></span>
+    <div class="btns">
+      <button id="prev-btn">Orqaga</button>
+      <button id="next-btn">Keyingi qadam</button>
+    </div>
+  </div>
+
+  <p class="footer-note">Private key hech qachon tarmoq orqali yuborilmaydi — faqat uning "isboti" yuboriladi.</p>
+
+  <div class="faq">
+    <h2>Savol: Public key bilan qulflangan xabarni public key'ning o'zi bilan ochib bo'lmaydimi?</h2>
+
+    <div class="faq-q">
+      <div class="q-label">Javob: Yo'q — va bu asimmetrik kriptografiyaning asosiy qoidasi</div>
+      Oddiy qulfda bitta kalit bilan qulflaysiz, xuddi o'sha kalit (yoki nusxasi) bilan ochasiz — bu <b>simmetrik</b> tizim. Public/private key'da bunday emas, bu <b>asimmetrik</b> tizim.
+    </div>
+
+    <div class="faq-rule">
+      Public key bilan qulflangan narsa faqat mos private key bilan ochiladi. Public key'ning o'zi bilan ochib bo'lmaydi.
+    </div>
+
+    <table class="faq-table">
+      <tr><th>Kalit</th><th>Vazifasi</th></tr>
+      <tr><td>Public key</td><td>faqat qulflash (shifrlash) uchun</td></tr>
+      <tr><td>Private key</td><td>faqat ochish (deshifrlash) uchun</td></tr>
+    </table>
+
+    <div class="faq-q">
+      <div class="q-label">Nega bu matematik jihatdan mumkin?</div>
+      RSA, ECC kabi algoritmlar "bir tomonlama funksiya" (trapdoor function)ga asoslangan: bir yo'nalishda oson, teskarisi amalda imkonsiz — lekin "sirli qo'shimcha ma'lumot" (private key) bilsangiz, teskarisi ham oson bo'ladi.
+      <br><br>
+      Soddalashtirilgan misol: ikkita katta tub sonni ko'paytirish oson (shu ko'paytmadan public key yasaladi), lekin natijadan orqaga qaytib qaysi ikkita son ko'paytirilganini topish — maxsus "kalit" (private key) bo'lmasa, amalda deyarli imkonsiz.
+    </div>
+
+    <div class="faq-note">
+      <b>Qo'shimcha nuance:</b> Zamonaviy SSH (Ed25519 kabi)da xabar aslida "shifrlanmaydi" — buning o'rniga <b>raqamli imzo</b> ishlatiladi: siz private key bilan challenge'ga imzo chekasiz, server esa public key bilan imzoning to'g'riligini tekshiradi (ochmaydi, balki tasdiqlaydi). Printsip bir xil qoladi: faqat private key egasi to'g'ri imzo qo'ya oladi, lekin uni tekshirish uchun private key shart emas.
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    phase: "1-bosqich: tayyorgarlik",
+    text: "Avval terminalda <code>ssh-keygen</code> buyrug'ini ishga tushirasiz. Bu bitta matematik bog'langan juft kalit yaratadi: <b>private key</b> va <b>public key</b>.",
+    terminal: '<span class="prompt">$</span> <span class="cmd">ssh-keygen -t ed25519</span>\n<span class="out">Generating public/private ed25519 key pair...</span>',
+    packet: null,
+    userIcon: "⚙️", userLabel: "Kalit yaratilmoqda...", userSub: "ssh-keygen",
+    serverIcon: "🖥️", serverLabel: "Hali hech narsa yo'q", serverSub: ""
+  },
+  {
+    phase: "1-bosqich: tayyorgarlik",
+    text: "Natijada 2 ta fayl paydo bo'ladi: <code>id_ed25519</code> (private key — hech kimga bermaysiz) va <code>id_ed25519.pub</code> (public key — bemalol tarqatsa bo'ladi).",
+    terminal: '<span class="prompt">$</span> <span class="cmd">ls ~/.ssh/</span>\n<span class="out">id_ed25519      id_ed25519.pub</span>',
+    packet: null,
+    userIcon: "🔑", userLabel: "Private key: id_ed25519", userSub: "faqat sizda qoladi",
+    serverIcon: "🖥️", serverLabel: "Hali hech narsa yo'q", serverSub: ""
+  },
+  {
+    phase: "1-bosqich: tayyorgarlik",
+    text: "Endi public key'ni serverga nusxalaysiz — buning uchun <code>ssh-copy-id</code> buyrug'i ishlatiladi. Bu safar oxirgi marta parol so'raladi.",
+    terminal: '<span class="prompt">$</span> <span class="cmd">ssh-copy-id user@server.com</span>\n<span class="out">Number of key(s) added: 1</span>',
+    packet: "Public key yuborilmoqda →",
+    userIcon: "🔑", userLabel: "Private key: id_ed25519", userSub: "faqat sizda qoladi",
+    serverIcon: "📥", serverLabel: "Public key qabul qilinmoqda", serverSub: ""
+  },
+  {
+    phase: "1-bosqich: tayyorgarlik",
+    text: "Server public key'ni o'zining <code>~/.ssh/authorized_keys</code> fayliga yozib qo'yadi. Endi server sizni \"taniydi\" — lekin hali hech narsani tasdiqlamagan.",
+    terminal: '<span class="prompt">$</span> <span class="cmd">cat ~/.ssh/authorized_keys</span>\n<span class="out">ssh-ed25519 AAAAC3Nza... user@laptop</span>',
+    packet: null,
+    userIcon: "🔑", userLabel: "Private key: id_ed25519", userSub: "faqat sizda qoladi",
+    serverIcon: "📋", serverLabel: "authorized_keys ro'yxatida", serverSub: "public key saqlandi"
+  },
+  {
+    phase: "2-bosqich: ulanish",
+    text: "Vaqt o'tib siz serverga ulanmoqchisiz: <code>ssh user@server.com</code> deysiz. Server sizning public key'ingiz ro'yxatda borligini ko'radi va tekshiruv boshlanadi.",
+    terminal: '<span class="prompt">$</span> <span class="cmd">ssh user@server.com</span>\n<span class="out">Ulanish so\'ralmoqda...</span>',
+    packet: null,
+    userIcon: "💻", userLabel: "Ulanish boshlanmoqda", userSub: "ssh user@server.com",
+    serverIcon: "📋", serverLabel: "authorized_keys ro'yxatida", serverSub: "public key saqlandi"
+  },
+  {
+    phase: "2-bosqich: ulanish",
+    text: "Server tasodifiy bir \"xabar\" (challenge) hosil qiladi va uni sizning public key'ingiz bilan qulflab, sizga jo'natadi.",
+    terminal: null,
+    packet: "Qulflangan xabar →",
+    userIcon: "💻", userLabel: "Xabar kutilmoqda", userSub: "",
+    serverIcon: "✉️", serverLabel: "Xabar public key bilan qulflandi", serverSub: "",
+    reverse: true
+  },
+  {
+    phase: "2-bosqich: ulanish",
+    text: "Sizning kompyuteringiz bu qulflangan xabarni faqat <code>id_ed25519</code> private key bilan ocha oladi — boshqa hech kim ocha olmaydi.",
+    terminal: null,
+    packet: null,
+    userIcon: "🔓", userLabel: "Xabar ochildi", userSub: "private key bilan",
+    serverIcon: "✉️", serverLabel: "Javob kutilmoqda", serverSub: ""
+  },
+  {
+    phase: "2-bosqich: ulanish",
+    text: "Siz ochilgan xabarning isbotini (imzosini) serverga qaytarasiz. Private key'ning o'zi hech qachon tarmoqqa chiqmaydi — faqat \"men buni ocha oldim\" degan dalil boradi.",
+    terminal: null,
+    packet: "Javob (isbot) →",
+    userIcon: "🔓", userLabel: "Xabar ochildi", userSub: "private key bilan",
+    serverIcon: "🛡️", serverLabel: "Tekshirilmoqda", serverSub: "",
+    reverse: true
+  },
+  {
+    phase: "2-bosqich: ulanish",
+    text: "Server javobni public key bilan tekshiradi: to'g'ri bo'lsa, demak siz haqiqatan ham mos private key'ga egasiz. Ulanish ruxsat etiladi — parol kerak emas!",
+    terminal: '<span class="out">Welcome to server.com!</span>\n<span class="prompt">user@server</span>:~$ ',
+    packet: null,
+    userIcon: "✅", userLabel: "Ulandi", userSub: "",
+    serverIcon: "✅", serverLabel: "Autentifikatsiya muvaffaqiyatli", serverSub: ""
+  }
+];
+
+let current = 0;
+const userBox = document.getElementById('user-box');
+const serverBox = document.getElementById('server-box');
+const packet = document.getElementById('packet');
+const packetText = document.getElementById('packet-text');
+const terminal = document.getElementById('terminal');
+const phaseTag = document.getElementById('phase-tag');
+const stepText = document.getElementById('step-text');
+const stepCounter = document.getElementById('step-counter');
+const progress = document.getElementById('progress');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+
+for (let i = 0; i < steps.length; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  progress.appendChild(dot);
+}
+
+function render() {
+  const s = steps[current];
+
+  userBox.innerHTML = '<span class="icon">' + s.userIcon + '</span><span class="label">' + s.userLabel + '</span>' + (s.userSub ? '<span class="sublabel">' + s.userSub + '</span>' : '');
+  serverBox.innerHTML = '<span class="icon">' + s.serverIcon + '</span><span class="label">' + s.serverLabel + '</span>' + (s.serverSub ? '<span class="sublabel">' + s.serverSub + '</span>' : '');
+
+  if (s.packet) {
+    packet.classList.add('show');
+    packet.classList.toggle('reverse', !!s.reverse);
+    packetText.textContent = s.packet;
+  } else {
+    packet.classList.remove('show');
+  }
+
+  if (s.terminal) {
+    terminal.classList.add('show');
+    terminal.innerHTML = s.terminal.split('\n').join('<br>');
+  } else {
+    terminal.classList.remove('show');
+  }
+
+  phaseTag.textContent = s.phase;
+  phaseTag.className = 'phase-tag ' + (s.phase.indexOf('tayyorgarlik') > -1 ? 'phase-setup' : 'phase-connect');
+
+  stepText.innerHTML = s.text;
+  stepCounter.textContent = (current + 1) + ' / ' + steps.length;
+
+  const dots = progress.querySelectorAll('.dot');
+  dots.forEach((d, i) => d.classList.toggle('done', i <= current));
+
+  prevBtn.style.visibility = current === 0 ? 'hidden' : 'visible';
+  nextBtn.textContent = current === steps.length - 1 ? 'Qaytadan boshlash' : 'Keyingi qadam';
+}
+
+nextBtn.addEventListener('click', () => {
+  current = (current === steps.length - 1) ? 0 : current + 1;
+  render();
+});
+
+prevBtn.addEventListener('click', () => {
+  if (current > 0) {
+    current--;
+    render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
